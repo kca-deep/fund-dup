@@ -24,7 +24,7 @@
 
 ### AI / NLP
 - BGE-M3 (FlagEmbedding) - Dense + Sparse 임베딩
-- MeCab-ko (KoNLPy) - 한국어 형태소 분석
+- Kiwi (kiwipiepy) - 한국어 형태소 분석
 - Qwen3-VL (Ollama) - LLM
 - datasketch - MinHash/LSH 사전 필터링
 

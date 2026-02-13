@@ -46,7 +46,7 @@ Frontend talks to backend via Next.js rewrite proxy (`/api/backend/:path*` → F
 ### 3-Phase Plagiarism Detection
 
 1. **Phase 0** (MinHash/LSH via datasketch): Pre-filter 1,000+ docs to ~50 candidates in ms
-2. **Phase 1** (Rule-based): 6+ consecutive Korean morphemes match (MeCab-ko) = `EXACT_COPY`
+2. **Phase 1** (Rule-based): 6+ consecutive Korean morphemes match (Kiwi) = `EXACT_COPY`
 3. **Phase 2** (AI-based): BGE-M3 Dense+Sparse hybrid search (Qdrant RRF) → cosine similarity = `SEMANTIC`
 
 Final judgment: higher risk from Phase 1 vs Phase 2. Score thresholds:
@@ -82,7 +82,7 @@ All backend calls are currently mocked. Components that will need real API integ
 
 ### Backend (Planned — `backend/` directory)
 
-FastAPI + Python with: SQLAlchemy 2.0 (replacing Prisma for backend), FlagEmbedding (BGE-M3 dense+sparse), MeCab-ko (Korean morphological analysis), datasketch (MinHash/LSH), ARQ (async Redis job queue). See `docs/implementation-plan.md` for full details.
+FastAPI + Python with: SQLAlchemy 2.0 (replacing Prisma for backend), FlagEmbedding (BGE-M3 dense+sparse), Kiwi/kiwipiepy (Korean morphological analysis, pip-only install, cross-platform), datasketch (MinHash/LSH), ARQ (async Redis job queue). See `docs/implementation-plan.md` for full details.
 
 ## Conventions
 
