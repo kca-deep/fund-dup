@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 문서 처리 상태
+enum DocumentStatus {
+  PENDING     // 대기중
+  PROCESSING  // 처리중
+  COMPLETED   // 완료
+  ERROR       // 오류
+}
+
+// 파일 유형
+enum FileType {
+  PDF
+  DOCX
+  HWP
+}
+
+// 표절 유형
+enum PlagiarismType {
+  EXACT_COPY  // 물리적 복사 (6어절 이상 일치)
+  SEMANTIC    // 의미적 유사 (말 바꾸기 의심)
+  CLEAN       // 유사도 낮음
+}
+
+// 문서 정보
+model Document {
+  id              String         @id @default(cuid())
+  filename        String         // 원본 파일명
+  fileType        FileType       // 파일 유형
+  filePath        String         // 저장 경로
+  fileSize        Int?           // 파일 크기 (bytes)
+  status          DocumentStatus @default(PENDING)
+  totalParagraphs Int?           // 총 문단 수
+  errorMessage    String?        // 오류 메시지
+  category        String?        // 문서 분류 (선택)
+  isReference     Boolean        @default(false) // 기존 문서(비교 대상) 여부
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  paragraphs   Paragraph[]
+  checkResults CheckResult[]
+
+  @@index([status])
+  @@index([isReference])
+  @@index([createdAt])
+  @@index([category])
+}
+
+// 문단 정보 (청크 단위)
+model Paragraph {
+  id          String   @id @default(cuid())
+  documentId  String
+  content     String   @db.Text // 문단 내용
+  position    Int      // 문서 내 순서
+  charCount   Int?     // 문자 수
+  createdAt   DateTime @default(now())
+
+  // Relations
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([position])
+}
+
+// 유사도 검사 결과
+model CheckResult {
+  id              String   @id @default(cuid())
+  documentId      String   // 검사 대상 문서
+  overallRate     Float    // 전체 유사도 (0.0 ~ 1.0)
+  overallGrade    String   // 전체 등급 (DANGER, WARNING, SAFE)
+  exactCopyCount  Int      @default(0) // 물리적 복사 문단 수
+  semanticCount   Int      @default(0) // 의미적 유사 문단 수
+  cleanCount      Int      @default(0) // 유사도 낮은 문단 수
+
+  // JSON 상세 결과
+  // [{
+  //   chunkIndex: number,
+  //   content: string,
+  //   type: "EXACT_COPY" | "SEMANTIC" | "CLEAN",
+  //   score: number,
+  //   matches: [{
+  //     documentId: string,
+  //     filename: string,
+  //     content: string,
+  //     score: number,
+  //     evidence?: string (6어절 일치 문구)
+  //   }]
+  // }]
+  detailJson      Json
+
+  createdAt       DateTime @default(now())
+
+  // Relations
+  document        Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([createdAt])
+  @@index([overallRate])
+}
+
+// 검사 작업 큐 (BullMQ 대체용 또는 백업)
+model JobQueue {
+  id          String   @id @default(cuid())
+  documentId  String   @unique
+  status      String   @default("pending") // pending, processing, completed, failed
+  priority    Int      @default(0)
+  attempts    Int      @default(0)
+  maxAttempts Int      @default(3)
+  error       String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([priority])
+}
