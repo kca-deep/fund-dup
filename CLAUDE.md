@@ -4,106 +4,93 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-사업계획서 유사도 검사 시스템 - A business proposal similarity detection system that compares uploaded documents against existing submissions to detect plagiarism. Uses a 2-track approach: rule-based (6-word consecutive match) and AI-based (semantic similarity via hybrid vector search).
+사업계획서 유사도 검사 시스템 (ICT기금 중복수급 AI기반 유사도검증) — compares uploaded Korean business proposals against existing submissions to detect plagiarism using a 3-Phase approach: MinHash pre-filtering, rule-based 6-word match, and AI semantic similarity via hybrid vector search.
 
-**Current Status**: UI/frontend complete with mock data. Backend analysis pipeline not yet implemented.
+**Current Status**: Frontend UI complete with mock data. Backend (FastAPI + Python) not yet implemented.
 
 ## Development Commands
 
 ```bash
-npm run dev      # Start development server (localhost:3000)
+npm run dev      # Start Next.js dev server (localhost:3000)
 npm run build    # Production build
-npm run start    # Start production server
-npm run lint     # Run ESLint
+npm run lint     # ESLint
 ```
 
-## Infrastructure Setup
+## Infrastructure
 
 ```bash
-# Start all services (Ollama, Qdrant, PostgreSQL, Redis)
-docker compose up -d
-
-# Stop all services
-docker compose down
-
-# Download required Ollama models
-docker exec -it ollama ollama pull qwen3-vl
-docker exec -it ollama ollama pull bge-m3
-
-# Initialize database
-npx prisma migrate dev
-npx prisma generate
+docker compose up -d                              # Start Ollama, Qdrant, PostgreSQL, Redis
+docker compose down                               # Stop all
+docker exec -it ollama ollama pull qwen3-vl       # Vision-Language LLM
+docker exec -it ollama ollama pull bge-m3         # Embedding model
+npx prisma migrate dev                            # DB migration
+npx prisma generate                               # Generate Prisma client types
 ```
+
+| Service    | Port  | Purpose                          |
+|------------|-------|----------------------------------|
+| Ollama     | 11434 | LLM only (qwen3-vl) — embeddings via FlagEmbedding |
+| Qdrant     | 6333  | Hybrid vector DB (Dense + Sparse)   |
+| PostgreSQL | 5432  | Metadata (user: funddup, db: fund_dup) |
+| Redis      | 6379  | ARQ job queue                       |
 
 ## Architecture
 
-### 2-Track Plagiarism Detection
+### Two-Service Split
 
-1. **Track 1 (Rule-based)**: 6+ consecutive Korean words matching = `EXACT_COPY`
-2. **Track 2 (AI-based)**: Hybrid vector search (Dense BGE-M3 + Sparse BM25) = `SEMANTIC`
+- **Frontend**: Next.js 16 (App Router) — complete, serves UI and proxies API calls
+- **Backend**: FastAPI (Python) — planned, handles document processing and similarity analysis
 
-Final judgment uses the higher risk result from both tracks.
+Frontend talks to backend via Next.js rewrite proxy (`/api/backend/:path*` → FastAPI `:8000`).
 
-### Core Data Flow (Planned)
+### 3-Phase Plagiarism Detection
 
-```
-Upload → LangChain Loader → Preprocessing (remove citations/refs)
-→ Chunking (1000 chars) → Hybrid Search → 6-word Rule + Semantic Score → Result
-```
+1. **Phase 0** (MinHash/LSH via datasketch): Pre-filter 1,000+ docs to ~50 candidates in ms
+2. **Phase 1** (Rule-based): 6+ consecutive Korean morphemes match (MeCab-ko) = `EXACT_COPY`
+3. **Phase 2** (AI-based): BGE-M3 Dense+Sparse hybrid search (Qdrant RRF) → cosine similarity = `SEMANTIC`
 
-### Key Directories
+Final judgment: higher risk from Phase 1 vs Phase 2. Score thresholds:
+- `EXACT_COPY`: 6+ word match → score forced to 1.0 (red)
+- `very_high`: >=0.85 (red), `high`: 0.70-0.85 (orange), `medium`: 0.50-0.70 (yellow), `low`: <0.50 (green)
+- Document grades: `DANGER` (any EXACT_COPY), `WARNING` (>=50% overall), `SAFE`
 
-- `app/` - Next.js App Router pages and API routes
-- `components/` - React components (shadcn/ui base-lyra variant)
-- `components/ui/` - shadcn/ui primitives with Base UI + HugeIcons
-- `lib/` - Utilities and shared logic
-- `lib/types/` - TypeScript type definitions (e.g., BusinessMetaInfo for proposal metadata)
-- `prisma/` - Database schema (Document, Paragraph, CheckResult, JobQueue)
+### Frontend Pages
 
-### Planned Directories (Not Yet Created)
+- `/` — File upload (react-dropzone) + process log viewer → navigates to `/result` on completion
+- `/result` — Results dashboard with chunk-level scoring + side-by-side diff viewer (react-diff-viewer-continued)
+- `/docu` — Document management (reference docs vs submissions, search/delete)
 
-- `lib/langchain/` - Document loading, embedding, similarity analysis
-- `lib/analysis/` - 6-word rule engine using `diff` library
-- `app/api/` - Next.js API routes for similarity check
+### Key Data Types
 
-### External Services (via Docker)
+Defined inline in components (not centralized):
+- `CheckResultData` in `components/result-dashboard.tsx` — full check result with chunks and matches
+- `BusinessMetaInfo` in `lib/types/meta-info.ts` — proposal metadata (project name, org, budget, period)
+- `UploadedFile` in `components/file-upload.tsx` — upload state machine (pending→uploading→extracting→processing→completed)
+- `ProcessLogEntry` in `lib/types/process-log.ts` — terminal-style log events
+- `Document` in `components/document-list.tsx` — document list item
 
-| Service | Port | Purpose |
-|---------|------|---------|
-| Ollama | 11434 | LLM (qwen3-vl) & embeddings (bge-m3, 1024 dim) |
-| Qdrant | 6333 | Hybrid vector DB (Dense + Sparse) |
-| PostgreSQL | 5432 | Metadata storage |
-| Redis | 6379 | Job queue (BullMQ) |
+### Mock Data
 
-## Similarity Thresholds
+`lib/mock-data.ts` provides `mockCheckResult` (12 chunks, 68% similarity, DANGER grade) and `mockDocuments` (3 docs). The result page and document page use these directly. File upload simulates 9 log events with timeouts.
 
-- `EXACT_COPY`: 6+ consecutive words match (red)
-- `very_high`: ≥0.85 similarity (red)
-- `high`: 0.70-0.85 (orange)
-- `medium`: 0.50-0.70 (yellow)
-- `low`: <0.50 (green)
+### Frontend-Backend Boundary
 
-Document grades: `DANGER` (any EXACT_COPY), `WARNING` (≥50% overall), `SAFE`
+All backend calls are currently mocked. Components that will need real API integration:
+- `FileUpload` — simulates upload + processing, will call `POST /api/v1/similarity/check`
+- `ResultDashboard` — reads `mockCheckResult`, will fetch from `GET /api/v1/similarity/results/{id}`
+- `DocumentList` — reads `mockDocuments`, will fetch from `GET /api/v1/documents`
 
-## File Formats
+### Backend (Planned — `backend/` directory)
 
-Currently supported: PDF, DOCX (via LangChain loaders)
-HWP support: Planned for future release (Python microservice)
+FastAPI + Python with: SQLAlchemy 2.0 (replacing Prisma for backend), FlagEmbedding (BGE-M3 dense+sparse), MeCab-ko (Korean morphological analysis), datasketch (MinHash/LSH), ARQ (async Redis job queue). See `docs/implementation-plan.md` for full details.
 
-## Key Implementation Notes
+## Conventions
 
-- Next.js 16 with App Router and React 19
-- shadcn/ui with base-lyra style variant, neutral base color, JetBrains Mono font, and HugeIcons (see `components.json`)
-- Prisma 7 ORM with PostgreSQL (currently stubbed in `lib/prisma.ts`)
-- react-dropzone for file uploads
-- react-diff-viewer-continued for side-by-side diff visualization
-- TanStack Query for data fetching
-- Preprocessing removes: citations, table of contents, legal references, bibliography
-- Korean currency formatting utilities in `lib/types/meta-info.ts`
-
-## Data Types
-
-Key interfaces in `lib/types/meta-info.ts`:
-- `BusinessMetaInfo` - Proposal metadata (project name, organization, budget, period, etc.)
-- `CheckResultData` - Similarity check results with chunk-level matches
-- `UploadedFile` - File upload state with extraction progress
+- **shadcn/ui**: `base-lyra` style variant, `neutral` base color, HugeIcons icon library, Base UI primitives (see `components.json`)
+- **Fonts**: JetBrains Mono as primary `--font-sans`, Geist as fallback
+- **Imports**: `@/*` path alias from project root
+- **Components**: All interactive components use `"use client"` directive
+- **State**: React hooks only (useState/useCallback/useMemo) — no Redux or Context
+- **Styling**: Tailwind CSS v4 with `cn()` utility (clsx + tailwind-merge). Custom CSS vars for `danger`/`warning`/`safe` plagiarism colors in `app/globals.css`
+- **Prisma**: Currently stubbed in `lib/prisma.ts` (returns empty arrays). Schema in `prisma/schema.prisma` has Document, Paragraph, CheckResult, JobQueue models
+- **Language**: Korean UI text throughout. Korean currency formatting in `lib/types/meta-info.ts` (`formatBudget`)
