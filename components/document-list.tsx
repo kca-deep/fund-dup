@@ -16,17 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,7 +32,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
 
 export type DocumentStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "ERROR";
 export type FileType = "PDF" | "DOCX" | "HWP";
@@ -83,9 +72,7 @@ export function DocumentList({
   const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredDocuments = documents.filter((doc) => {
-    const matchesSearch = doc.filename
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
+    const matchesSearch = doc.filename.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = showReferenceOnly ? doc.isReference : true;
     return matchesSearch && matchesType;
   });
@@ -94,30 +81,26 @@ export function DocumentList({
     switch (status) {
       case "PENDING":
         return (
-          <Badge variant="outline" className="gap-1">
-            <Clock className="h-3 w-3" />
-            대기중
+          <Badge className="bg-foreground/5 border border-border text-muted-foreground gap-1">
+            <Clock className="h-3 w-3" />대기중
           </Badge>
         );
       case "PROCESSING":
         return (
-          <Badge className="bg-primary text-primary-foreground hover:bg-primary/90 gap-1">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            처리중
+          <Badge className="bg-primary/10 border border-primary/20 text-primary gap-1">
+            <Loader2 className="h-3 w-3 animate-spin" />처리중
           </Badge>
         );
       case "COMPLETED":
         return (
-          <Badge className="bg-safe text-safe-foreground hover:bg-safe/90 gap-1">
-            <CheckCircle2 className="h-3 w-3" />
-            완료
+          <Badge className="bg-safe/10 border border-safe/20 text-safe gap-1">
+            <CheckCircle2 className="h-3 w-3" />완료
           </Badge>
         );
       case "ERROR":
         return (
-          <Badge variant="destructive" className="gap-1">
-            <XCircle className="h-3 w-3" />
-            오류
+          <Badge className="bg-danger/10 border border-danger/20 text-danger gap-1">
+            <XCircle className="h-3 w-3" />오류
           </Badge>
         );
     }
@@ -127,25 +110,23 @@ export function DocumentList({
     if (!grade) return null;
     switch (grade) {
       case "DANGER":
-        return <Badge variant="destructive">위험</Badge>;
+        return <Badge className="bg-danger text-danger-foreground">위험</Badge>;
       case "WARNING":
-        return (
-          <Badge className="bg-warning text-warning-foreground hover:bg-warning/90">주의</Badge>
-        );
+        return <Badge className="bg-warning text-warning-foreground">주의</Badge>;
       case "SAFE":
-        return <Badge className="bg-safe text-safe-foreground hover:bg-safe/90">안전</Badge>;
+        return <Badge className="bg-safe text-safe-foreground">안전</Badge>;
       default:
         return null;
     }
   };
 
-  const getFileTypeIcon = (fileType: FileType) => {
+  const getFileTypeColor = (fileType: FileType) => {
     const colors: Record<FileType, string> = {
-      PDF: "text-danger",
-      DOCX: "text-chart-2",
-      HWP: "text-safe",
+      PDF: "text-danger bg-danger/10 border-danger/20",
+      DOCX: "text-primary bg-primary/10 border-primary/20",
+      HWP: "text-safe bg-safe/10 border-safe/20",
     };
-    return <FileText className={cn("h-5 w-5", colors[fileType])} />;
+    return colors[fileType];
   };
 
   const formatFileSize = (bytes?: number) => {
@@ -160,8 +141,6 @@ export function DocumentList({
       year: "numeric",
       month: "short",
       day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
     });
   };
 
@@ -184,163 +163,144 @@ export function DocumentList({
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FolderOpen className="h-5 w-5" />
-            {showReferenceOnly ? "기존 문서 관리" : "검사 결과"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center gap-4">
-                <Skeleton className="h-10 w-10 rounded" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-1/3" />
-                  <Skeleton className="h-3 w-1/4" />
-                </div>
-                <Skeleton className="h-6 w-16" />
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="glass-card rounded-2xl p-5 animate-shimmer">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-foreground/5" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-1/3 bg-foreground/5 rounded" />
+                <div className="h-3 w-1/4 bg-foreground/[0.03] rounded" />
               </div>
-            ))}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        ))}
+      </div>
     );
   }
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle className="flex items-center gap-2">
-              <FolderOpen className="h-5 w-5" />
-              {showReferenceOnly ? "기존 문서 관리" : "검사 결과"}
-              <Badge variant="outline" className="ml-2">
-                {filteredDocuments.length}
-              </Badge>
-            </CardTitle>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="문서 검색..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {filteredDocuments.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <FolderOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>문서가 없습니다</p>
+      {/* Search Bar — Glass style */}
+      <div className="relative mb-4">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="문서 검색..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-11 pr-4 py-3 rounded-2xl glass-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all duration-300"
+          style={{ transitionTimingFunction: "var(--spring-ease)" }}
+        />
+      </div>
+
+      {filteredDocuments.length === 0 ? (
+        <div className="double-bezel">
+          <div className="bezel-inner py-16">
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-2xl bg-foreground/[0.03] border border-foreground/[0.06] flex items-center justify-center mx-auto mb-4">
+                <FolderOpen className="h-7 w-7 text-foreground/15" />
+              </div>
+              <p className="text-foreground/60 font-medium">문서가 없습니다</p>
               {searchQuery && (
-                <p className="text-sm mt-1">다른 검색어를 시도해보세요</p>
+                <p className="text-sm text-muted-foreground mt-1">다른 검색어를 시도해보세요</p>
               )}
             </div>
-          ) : (
-            <ScrollArea className="max-h-[500px]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[40%]">파일명</TableHead>
-                    <TableHead>상태</TableHead>
-                    <TableHead>유사도</TableHead>
-                    <TableHead>등급</TableHead>
-                    <TableHead>등록일</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredDocuments.map((doc) => (
-                    <TableRow
-                      key={doc.id}
-                      className="cursor-pointer"
-                      onClick={() => onViewDocument?.(doc)}
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getFileTypeIcon(doc.fileType)}
-                          <div>
-                            <p className="font-medium truncate max-w-[200px]">
-                              {doc.filename}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatFileSize(doc.fileSize)}
-                              {doc.category && ` · ${doc.category}`}
-                            </p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(doc.status)}</TableCell>
-                      <TableCell>
-                        {doc.overallSimilarity !== undefined
-                          ? `${Math.round(doc.overallSimilarity * 100)}%`
-                          : "-"}
-                      </TableCell>
-                      <TableCell>{getGradeBadge(doc.overallGrade)}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {formatDate(doc.createdAt)}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            className="inline-flex items-center justify-center rounded-md p-2 hover:bg-muted transition-colors"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onViewDocument?.(doc);
-                              }}
-                            >
-                              <Eye className="mr-2 h-4 w-4" />
-                              상세 보기
-                            </DropdownMenuItem>
-                            {onDownloadDocument && (
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onDownloadDocument(doc.id);
-                                }}
-                              >
-                                <Download className="mr-2 h-4 w-4" />
-                                다운로드
-                              </DropdownMenuItem>
-                            )}
-                            {onDeleteDocument && (
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  confirmDelete(doc);
-                                }}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                삭제
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        </div>
+      ) : (
+        <ScrollArea className="max-h-[600px]">
+          <div className="space-y-2">
+            {filteredDocuments.map((doc, index) => (
+              <div
+                key={doc.id}
+                onClick={() => onViewDocument?.(doc)}
+                className="glass-card rounded-2xl p-4 cursor-pointer hover-lift group"
+                style={{
+                  animationDelay: `${index * 60}ms`,
+                }}
+              >
+                <div className="flex items-center gap-4">
+                  {/* File type icon */}
+                  <div className={cn(
+                    "w-12 h-12 rounded-xl border flex items-center justify-center shrink-0",
+                    getFileTypeColor(doc.fileType)
+                  )}>
+                    <FileText className="h-5 w-5" />
+                  </div>
 
-      {/* Delete Confirmation Dialog */}
+                  {/* File info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-sm font-medium truncate text-foreground">
+                        {doc.filename}
+                      </p>
+                      {getGradeBadge(doc.overallGrade)}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span>{formatFileSize(doc.fileSize)}</span>
+                      {doc.category && <span>· {doc.category}</span>}
+                      <span>· {formatDate(doc.createdAt)}</span>
+                    </div>
+                  </div>
+
+                  {/* Status + Similarity + Actions */}
+                  <div className="flex items-center gap-3 shrink-0">
+                    {doc.overallSimilarity !== undefined && (
+                      <span className={cn(
+                        "text-sm font-bold tabular-nums",
+                        doc.overallGrade === "DANGER" && "text-danger",
+                        doc.overallGrade === "WARNING" && "text-warning",
+                        doc.overallGrade === "SAFE" && "text-safe",
+                        !doc.overallGrade && "text-muted-foreground",
+                      )}>
+                        {Math.round(doc.overallSimilarity * 100)}%
+                      </span>
+                    )}
+                    {getStatusBadge(doc.status)}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        className="p-2 rounded-xl hover:bg-foreground/5 text-muted-foreground hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="glass-strong border-border">
+                        <DropdownMenuItem
+                          onClick={(e) => { e.stopPropagation(); onViewDocument?.(doc); }}
+                          className="gap-2"
+                        >
+                          <Eye className="h-4 w-4" />상세 보기
+                        </DropdownMenuItem>
+                        {onDownloadDocument && (
+                          <DropdownMenuItem
+                            onClick={(e) => { e.stopPropagation(); onDownloadDocument(doc.id); }}
+                            className="gap-2"
+                          >
+                            <Download className="h-4 w-4" />다운로드
+                          </DropdownMenuItem>
+                        )}
+                        {onDeleteDocument && (
+                          <DropdownMenuItem
+                            className="text-danger gap-2"
+                            onClick={(e) => { e.stopPropagation(); confirmDelete(doc); }}
+                          >
+                            <Trash2 className="h-4 w-4" />삭제
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      )}
+
+      {/* Delete Dialog — Glass style */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="glass-strong border-border rounded-2xl">
           <DialogHeader>
             <DialogTitle>문서 삭제</DialogTitle>
             <DialogDescription>
@@ -353,17 +313,18 @@ export function DocumentList({
               variant="outline"
               onClick={() => setDeleteDialogOpen(false)}
               disabled={isDeleting}
+              className="rounded-full border-border"
             >
               취소
             </Button>
-            <Button
-              variant="destructive"
+            <button
               onClick={handleDelete}
               disabled={isDeleting}
+              className="cta-primary bg-danger text-danger-foreground px-6 py-2.5 text-sm disabled:opacity-50"
             >
-              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin inline" />}
               삭제
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

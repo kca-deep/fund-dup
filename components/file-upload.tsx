@@ -2,10 +2,9 @@
 
 import { useCallback, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, File, X, AlertCircle, CheckCircle2, Sparkles, Loader2 } from "lucide-react";
+import { Upload, File, X, AlertCircle, CheckCircle2, Sparkles, Loader2, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { type BusinessMetaInfo, type MetaExtractionStatus } from "@/lib/types/meta-info";
@@ -31,7 +30,7 @@ interface FileUploadProps {
   onUploadComplete?: (result: UploadedFile) => void;
   onLogEvent?: (entry: LogEventPayload) => void;
   maxFiles?: number;
-  maxSize?: number; // in bytes
+  maxSize?: number;
   acceptedFormats?: string[];
 }
 
@@ -40,7 +39,7 @@ export function FileUpload({
   onUploadComplete,
   onLogEvent,
   maxFiles = 5,
-  maxSize = 10 * 1024 * 1024, // 10MB
+  maxSize = 10 * 1024 * 1024,
   acceptedFormats = [".pdf", ".docx"],
 }: FileUploadProps) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
@@ -57,7 +56,6 @@ export function FileUpload({
       setFiles((prev) => [...prev, ...newFiles].slice(0, maxFiles));
       onFilesSelected?.(acceptedFiles);
 
-      // Log: files added
       for (const f of acceptedFiles) {
         onLogEvent?.({
           level: "info",
@@ -82,7 +80,6 @@ export function FileUpload({
       maxSize,
     });
 
-  // Log: file rejections (point 2)
   useEffect(() => {
     if (fileRejections.length > 0) {
       for (const rejection of fileRejections) {
@@ -104,8 +101,6 @@ export function FileUpload({
     const formData = new FormData();
     formData.append("file", uploadedFile.file);
 
-    // Step 1: Start uploading
-    // Log: upload start (point 3)
     onLogEvent?.({
       level: "info",
       message: `파일 업로드 시작`,
@@ -116,17 +111,12 @@ export function FileUpload({
     setFiles((prev) =>
       prev.map((f) =>
         f.id === uploadedFile.id
-          ? {
-              ...f,
-              status: "uploading" as const,
-              metaExtraction: { status: "idle", progress: 0 },
-            }
+          ? { ...f, status: "uploading" as const, metaExtraction: { status: "idle", progress: 0 } }
           : f
       )
     );
 
     try {
-      // Simulate upload progress
       let uploadProgress = 0;
       const uploadInterval = setInterval(() => {
         uploadProgress += 15;
@@ -139,12 +129,9 @@ export function FileUpload({
         }
       }, 150);
 
-      // Simulate reaching 40% (upload complete)
       await new Promise((resolve) => setTimeout(resolve, 600));
       clearInterval(uploadInterval);
 
-      // Step 2: Start OCR meta extraction
-      // Log: extracting start (point 4)
       onLogEvent?.({
         level: "info",
         message: "OCR 텍스트 인식 시작",
@@ -159,23 +146,17 @@ export function FileUpload({
                 ...f,
                 status: "extracting" as const,
                 progress: 45,
-                metaExtraction: {
-                  status: "extracting",
-                  progress: 0,
-                  message: "문서에서 메타정보 추출 중...",
-                },
+                metaExtraction: { status: "extracting", progress: 0, message: "문서에서 메타정보 추출 중..." },
               }
             : f
         )
       );
 
-      // Simulate meta extraction progress
       let extractProgress = 0;
       let metaParsingLogged = false;
       const extractInterval = setInterval(() => {
         extractProgress += 20;
         if (extractProgress <= 100) {
-          // Log: meta parsing (point 5) - fire once at >= 50
           if (extractProgress >= 50 && !metaParsingLogged) {
             metaParsingLogged = true;
             onLogEvent?.({
@@ -194,10 +175,7 @@ export function FileUpload({
                     metaExtraction: {
                       status: "extracting" as const,
                       progress: extractProgress,
-                      message:
-                        extractProgress < 50
-                          ? "OCR 텍스트 인식 중..."
-                          : "메타정보 파싱 중...",
+                      message: extractProgress < 50 ? "OCR 텍스트 인식 중..." : "메타정보 파싱 중...",
                     },
                   }
                 : f
@@ -209,7 +187,6 @@ export function FileUpload({
       await new Promise((resolve) => setTimeout(resolve, 1200));
       clearInterval(extractInterval);
 
-      // Mock extracted meta info
       const mockMetaInfo: Partial<BusinessMetaInfo> = {
         projectName: "AI 기반 문서 분석 시스템 개발",
         hostOrganization: "주식회사 테스트기업",
@@ -217,10 +194,7 @@ export function FileUpload({
         budget: 500000000,
         govFunding: 350000000,
         selfFunding: 150000000,
-        projectPeriod: {
-          start: "2024-03-01",
-          end: "2025-02-28",
-        },
+        projectPeriod: { start: "2024-03-01", end: "2025-02-28" },
         projectYear: 1,
         totalYears: 2,
         businessType: "연구개발사업",
@@ -231,29 +205,19 @@ export function FileUpload({
       setFiles((prev) =>
         prev.map((f) =>
           f.id === uploadedFile.id
-            ? {
-                ...f,
-                progress: 70,
-                metaExtraction: { status: "completed" as const, progress: 100 },
-                metaInfo: mockMetaInfo,
-              }
+            ? { ...f, progress: 70, metaExtraction: { status: "completed" as const, progress: 100 }, metaInfo: mockMetaInfo }
             : f
         )
       );
 
-      // Log: meta extraction complete (point 6)
       onLogEvent?.({
         level: "success",
         message: "메타정보 추출 완료",
-        detail: mockMetaInfo.projectName
-          ? `사업명: ${mockMetaInfo.projectName}`
-          : undefined,
+        detail: mockMetaInfo.projectName ? `사업명: ${mockMetaInfo.projectName}` : undefined,
         fileId: uploadedFile.id,
         fileName: uploadedFile.file.name,
       });
 
-      // Step 3: Process similarity check
-      // Log: processing start (point 7)
       onLogEvent?.({
         level: "info",
         message: "유사도 검사 중",
@@ -264,13 +228,10 @@ export function FileUpload({
 
       setFiles((prev) =>
         prev.map((f) =>
-          f.id === uploadedFile.id
-            ? { ...f, status: "processing" as const, progress: 75 }
-            : f
+          f.id === uploadedFile.id ? { ...f, status: "processing" as const, progress: 75 } : f
         )
       );
 
-      // Simulate processing progress
       const processInterval = setInterval(() => {
         setFiles((prev) =>
           prev.map((f) =>
@@ -297,17 +258,11 @@ export function FileUpload({
       setFiles((prev) =>
         prev.map((f) =>
           f.id === uploadedFile.id
-            ? {
-                ...f,
-                status: "completed" as const,
-                progress: 100,
-                result: result.data,
-              }
+            ? { ...f, status: "completed" as const, progress: 100, result: result.data }
             : f
         )
       );
 
-      // Log: completed (point 8)
       onLogEvent?.({
         level: "success",
         message: "검사 완료",
@@ -324,10 +279,8 @@ export function FileUpload({
         result: result.data,
       });
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "처리 실패";
+      const errorMessage = error instanceof Error ? error.message : "처리 실패";
 
-      // Log: error (point 9)
       onLogEvent?.({
         level: "error",
         message: "처리 실패",
@@ -339,12 +292,7 @@ export function FileUpload({
       setFiles((prev) =>
         prev.map((f) =>
           f.id === uploadedFile.id
-            ? {
-                ...f,
-                status: "error" as const,
-                error: errorMessage,
-                metaExtraction: { status: "error" as const, progress: 0 },
-              }
+            ? { ...f, status: "error" as const, error: errorMessage, metaExtraction: { status: "error" as const, progress: 0 } }
             : f
         )
       );
@@ -361,11 +309,11 @@ export function FileUpload({
   const getGradeBadge = (grade: string) => {
     switch (grade) {
       case "DANGER":
-        return <Badge variant="destructive">위험</Badge>;
+        return <Badge className="bg-danger text-danger-foreground border-danger/30">위험</Badge>;
       case "WARNING":
-        return <Badge className="bg-warning text-warning-foreground hover:bg-warning/90">주의</Badge>;
+        return <Badge className="bg-warning text-warning-foreground border-warning/30">주의</Badge>;
       case "SAFE":
-        return <Badge className="bg-safe text-safe-foreground hover:bg-safe/90">안전</Badge>;
+        return <Badge className="bg-safe text-safe-foreground border-safe/30">안전</Badge>;
       default:
         return null;
     }
@@ -378,36 +326,50 @@ export function FileUpload({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Upload className="h-5 w-5" />
-          문서 업로드
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Dropzone */}
+    <div className="double-bezel">
+      <div className="bezel-inner p-5 space-y-4">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <Upload className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-foreground">문서 업로드</h3>
+            <p className="text-xs text-muted-foreground">PDF 또는 DOCX 파일을 업로드하세요</p>
+          </div>
+        </div>
+
+        {/* Dropzone — Glass effect */}
         <div
           {...getRootProps()}
           className={cn(
-            "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors",
+            "relative rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-all duration-500",
             isDragActive
-              ? "border-primary bg-primary/5"
-              : "border-muted-foreground/25 hover:border-primary/50"
+              ? "border-primary bg-primary/5 glow-primary scale-[1.01]"
+              : "border-border hover:border-primary/40 hover:bg-foreground/[0.02]"
           )}
+          style={{ transitionTimingFunction: "var(--spring-ease)" }}
         >
           <input {...getInputProps()} />
-          <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <div className={cn(
+            "mx-auto w-14 h-14 rounded-2xl flex items-center justify-center mb-4 transition-all duration-500",
+            isDragActive
+              ? "bg-primary/15 border border-primary/30 scale-110"
+              : "bg-muted border border-border"
+          )}>
+            <Upload className={cn(
+              "h-6 w-6 transition-colors duration-300",
+              isDragActive ? "text-primary" : "text-muted-foreground"
+            )} />
+          </div>
           {isDragActive ? (
             <p className="text-primary font-medium">파일을 여기에 놓으세요</p>
           ) : (
             <div className="space-y-2">
-              <p className="text-muted-foreground">
+              <p className="text-foreground/80 font-medium">
                 파일을 드래그하거나 클릭하여 선택하세요
               </p>
               <p className="text-xs text-muted-foreground">
-                지원 형식: {acceptedFormats.join(", ")} (최대{" "}
-                {formatFileSize(maxSize)})
+                지원 형식: {acceptedFormats.join(", ")} (최대 {formatFileSize(maxSize)})
               </p>
             </div>
           )}
@@ -415,8 +377,8 @@ export function FileUpload({
 
         {/* File Rejections */}
         {fileRejections.length > 0 && (
-          <div className="flex items-center gap-2 text-destructive text-sm">
-            <AlertCircle className="h-4 w-4" />
+          <div className="flex items-center gap-2 text-danger text-sm p-3 rounded-xl bg-danger-muted/30 border border-danger/20">
+            <AlertCircle className="h-4 w-4 shrink-0" />
             <span>일부 파일이 거부되었습니다. 지원되는 형식을 확인하세요.</span>
           </div>
         )}
@@ -427,13 +389,16 @@ export function FileUpload({
             {files.map((uploadedFile) => (
               <div
                 key={uploadedFile.id}
-                className="p-3 border rounded-lg space-y-2"
+                className="glass-card rounded-xl p-4 space-y-3 transition-all duration-500"
+                style={{ transitionTimingFunction: "var(--spring-ease)" }}
               >
                 <div className="flex items-center gap-3">
-                  <File className="h-8 w-8 text-muted-foreground shrink-0" />
+                  <div className="w-10 h-10 rounded-xl bg-muted border border-border flex items-center justify-center shrink-0">
+                    <File className="h-5 w-5 text-muted-foreground" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium truncate">
+                      <p className="text-sm font-medium truncate text-foreground">
                         {uploadedFile.file.name}
                       </p>
                       {uploadedFile.status === "completed" &&
@@ -444,38 +409,37 @@ export function FileUpload({
                       {formatFileSize(uploadedFile.file.size)}
                       {uploadedFile.status === "completed" &&
                         uploadedFile.result && (
-                          <span className="ml-2">
-                            유사도:{" "}
-                            {Math.round(
-                              uploadedFile.result.overallSimilarity * 100
-                            )}
-                            %
+                          <span className="ml-2 text-foreground/70">
+                            유사도: {Math.round(uploadedFile.result.overallSimilarity * 100)}%
                           </span>
                         )}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {uploadedFile.status === "completed" && (
-                      <CheckCircle2 className="h-5 w-5 text-safe" />
+                      <div className="w-7 h-7 rounded-full bg-safe/10 flex items-center justify-center">
+                        <CheckCircle2 className="h-4 w-4 text-safe" />
+                      </div>
                     )}
                     {uploadedFile.status === "error" && (
-                      <AlertCircle className="h-5 w-5 text-destructive" />
+                      <div className="w-7 h-7 rounded-full bg-danger/10 flex items-center justify-center">
+                        <AlertCircle className="h-4 w-4 text-danger" />
+                      </div>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                    <button
                       onClick={() => removeFile(uploadedFile.id)}
+                      className="p-1.5 rounded-lg hover:bg-foreground/5 text-muted-foreground hover:text-foreground transition-all"
                     >
                       <X className="h-4 w-4" />
-                    </Button>
+                    </button>
                   </div>
                 </div>
 
-                {/* Progress with status labels */}
+                {/* Progress */}
                 {(uploadedFile.status === "uploading" ||
                   uploadedFile.status === "extracting" ||
                   uploadedFile.status === "processing") && (
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2">
                         {uploadedFile.status === "uploading" && (
@@ -499,40 +463,50 @@ export function FileUpload({
                           </>
                         )}
                       </div>
-                      <span className="text-muted-foreground">{uploadedFile.progress}%</span>
+                      <span className="text-muted-foreground tabular-nums">{uploadedFile.progress}%</span>
                     </div>
-                    <Progress value={uploadedFile.progress} className="h-1.5" />
+                    <div className="h-1.5 rounded-full bg-foreground/5 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-primary/80 to-primary transition-all duration-300"
+                        style={{ width: `${uploadedFile.progress}%` }}
+                      />
+                    </div>
                   </div>
                 )}
 
-                {/* Meta info extraction complete indicator */}
+                {/* Meta extraction complete */}
                 {uploadedFile.metaExtraction?.status === "completed" &&
                   uploadedFile.metaInfo && (
-                    <div className="flex items-center gap-2 text-xs bg-safe/10 text-safe px-2 py-1 rounded">
+                    <div className="flex items-center gap-2 text-xs bg-safe/5 border border-safe/10 text-safe px-3 py-2 rounded-xl">
                       <Sparkles className="h-3 w-3" />
                       <span>메타정보 추출 완료: {uploadedFile.metaInfo.projectName}</span>
                     </div>
                   )}
 
                 {uploadedFile.status === "error" && (
-                  <p className="text-xs text-destructive">
+                  <p className="text-xs text-danger bg-danger/5 border border-danger/10 px-3 py-2 rounded-xl">
                     {uploadedFile.error}
                   </p>
                 )}
               </div>
             ))}
 
-            {/* Upload Button */}
+            {/* Upload CTA Button — Supanova Premium */}
             {files.some((f) => f.status === "pending") && (
-              <Button onClick={uploadAll} className="w-full">
-                <Upload className="mr-2 h-4 w-4" />
-                유사도 검사 시작 ({files.filter((f) => f.status === "pending").length}개
-                파일)
-              </Button>
+              <button
+                onClick={uploadAll}
+                className="cta-primary w-full flex items-center justify-center gap-3 bg-primary text-primary-foreground px-8 py-4 text-base font-semibold"
+              >
+                <Upload className="h-5 w-5" />
+                유사도 검사 시작 ({files.filter((f) => f.status === "pending").length}개 파일)
+                <div className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center ml-1">
+                  <ArrowRight className="h-4 w-4" />
+                </div>
+              </button>
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
